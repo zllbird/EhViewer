@@ -385,6 +385,7 @@
     <string name="set_pattern_protection">Set pattern protection</string>
     <string name="set_pattern_protection_tip">Draw a pattern to set pattern protection\nLeave blank to clear pattern protection</string>
     <string name="set">Set</string>
+    <string name="enable_fingerprint">Also allow unlock with fingerprint</string>
 
     <!-- Gallery Activity -->
     <string name="page_menu_title">Page %d</string>
@@ -655,5 +656,11 @@
         <item quantity="one">year</item>
         <item quantity="other">years</item>
     </plurals>
+    <string name="dialog_archive_title">H@H Downloader</string>
+    <string name="no_archives">No Archives</string>
+    <string name="download_archive_started">Archive download started</string>
+    <string name="download_archive_failure">Failed to download archive</string>
+    <string name="archive">Archive</string>
+    <string name="download_archive_failure_no_hath">Need H@H client for archive download</string>
 
 </resources>

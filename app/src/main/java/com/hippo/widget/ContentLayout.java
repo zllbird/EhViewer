@@ -35,6 +35,7 @@ import com.hippo.easyrecyclerview.EasyRecyclerView;
 import com.hippo.easyrecyclerview.FastScroller;
 import com.hippo.easyrecyclerview.HandlerDrawable;
 import com.hippo.easyrecyclerview.LayoutManagerUtils;
+import com.hippo.ehviewer.EhApplication;
 import com.hippo.ehviewer.R;
 import com.hippo.refreshlayout.RefreshLayout;
 import com.hippo.util.DrawableManager;
@@ -457,9 +458,11 @@ public class ContentLayout extends FrameLayout {
                             showContent();
 
                             // RecyclerView scroll
-                            mRecyclerView.stopScroll();
-                            LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
-                            onScrollToPosition(0);
+                            if (mRecyclerView.isAttachedToWindow()) {
+                                mRecyclerView.stopScroll();
+                                LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
+                                onScrollToPosition(0);
+                            }
                         }
                         break;
                     case TYPE_PRE_PAGE:
@@ -485,7 +488,7 @@ public class ContentLayout extends FrameLayout {
                                     mRefreshLayout.setFooterRefreshing(false);
                                     showContent();
 
-                                    if (mCurrentTaskType == TYPE_PRE_PAGE) {
+                                    if (mCurrentTaskType == TYPE_PRE_PAGE && mRecyclerView.isAttachedToWindow()) {
                                         // RecyclerView scroll, to top
                                         mRecyclerView.stopScroll();
                                         LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
@@ -510,15 +513,17 @@ public class ContentLayout extends FrameLayout {
                             mRefreshLayout.setFooterRefreshing(false);
                             showContent();
 
-                            // RecyclerView scroll
-                            if (mCurrentTaskType == TYPE_PRE_PAGE_KEEP_POS) {
-                                mRecyclerView.stopScroll();
-                                LayoutManagerUtils.scrollToPositionProperly(mRecyclerView.getLayoutManager(), getContext(),
-                                        dataSize - 1, mOnScrollToPositionListener);
-                            } else {
-                                mRecyclerView.stopScroll();
-                                LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
-                                onScrollToPosition(0);
+                            if (mRecyclerView.isAttachedToWindow()) {
+                                // RecyclerView scroll
+                                if (mCurrentTaskType == TYPE_PRE_PAGE_KEEP_POS) {
+                                    mRecyclerView.stopScroll();
+                                    LayoutManagerUtils.scrollToPositionProperly(mRecyclerView.getLayoutManager(), getContext(),
+                                            dataSize - 1, mOnScrollToPositionListener);
+                                } else {
+                                    mRecyclerView.stopScroll();
+                                    LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
+                                    onScrollToPosition(0);
+                                }
                             }
                         }
                         break;
@@ -542,7 +547,7 @@ public class ContentLayout extends FrameLayout {
                                     mRefreshLayout.setFooterRefreshing(false);
                                     showContent();
 
-                                    if (mCurrentTaskType == TYPE_NEXT_PAGE) {
+                                    if (mCurrentTaskType == TYPE_NEXT_PAGE && mRecyclerView.isAttachedToWindow()) {
                                         // RecyclerView scroll
                                         mRecyclerView.stopScroll();
                                         LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), oldDataSize, 0);
@@ -567,13 +572,15 @@ public class ContentLayout extends FrameLayout {
                             mRefreshLayout.setFooterRefreshing(false);
                             showContent();
 
-                            if (mCurrentTaskType == TYPE_NEXT_PAGE_KEEP_POS) {
-                                mRecyclerView.stopScroll();
-                                mRecyclerView.smoothScrollBy(0, mNextPageScrollSize);
-                            } else {
-                                mRecyclerView.stopScroll();
-                                LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), oldDataSize, 0);
-                                onScrollToPosition(oldDataSize);
+                            if (mRecyclerView.isAttachedToWindow()) {
+                                if (mCurrentTaskType == TYPE_NEXT_PAGE_KEEP_POS) {
+                                    mRecyclerView.stopScroll();
+                                    mRecyclerView.smoothScrollBy(0, mNextPageScrollSize);
+                                } else {
+                                    mRecyclerView.stopScroll();
+                                    LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), oldDataSize, 0);
+                                    onScrollToPosition(oldDataSize);
+                                }
                             }
                         }
                         break;
@@ -614,10 +621,12 @@ public class ContentLayout extends FrameLayout {
                             mRefreshLayout.setFooterRefreshing(false);
                             showContent();
 
-                            // RecyclerView scroll
-                            mRecyclerView.stopScroll();
-                            LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
-                            onScrollToPosition(0);
+                            if (mRecyclerView.isAttachedToWindow()) {
+                                // RecyclerView scroll
+                                mRecyclerView.stopScroll();
+                                LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), 0, 0);
+                                onScrollToPosition(0);
+                            }
                         }
                         break;
                     case TYPE_REFRESH_PAGE:
@@ -651,7 +660,7 @@ public class ContentLayout extends FrameLayout {
                             showContent();
 
                             // RecyclerView scroll
-                            if (newIndexEnd > oldIndexEnd && newIndexEnd > 0) {
+                            if (newIndexEnd > oldIndexEnd && newIndexEnd > 0 && mRecyclerView.isAttachedToWindow()) {
                                 mRecyclerView.stopScroll();
                                 LayoutManagerUtils.scrollToPositionWithOffset(mRecyclerView.getLayoutManager(), newIndexEnd - 1, 0);
                                 onScrollToPosition(newIndexEnd - 1);
@@ -848,14 +857,24 @@ public class ContentLayout extends FrameLayout {
             }
         }
 
+        private int mSavedDataId = IntIdGenerator.INVALID_ID;
+
         private Parcelable saveInstanceState(Parcelable superState) {
             Bundle bundle = new Bundle();
             bundle.putParcelable(KEY_SUPER, superState);
             int shownView = mViewTransition.getShownViewIndex();
             bundle.putInt(KEY_SHOWN_VIEW, shownView);
             bundle.putString(KEY_TIP, mTipView.getText().toString());
-            // TODO What if data is large
-            bundle.putParcelableArrayList(KEY_DATA, mData);
+
+            // TODO It's a bad design
+            EhApplication app = (EhApplication) getContext().getApplicationContext();
+            if (mSavedDataId != IntIdGenerator.INVALID_ID) {
+                app.removeGlobalStuff(mSavedDataId);
+                mSavedDataId = IntIdGenerator.INVALID_ID;
+            }
+            mSavedDataId = app.putGlobalStuff(mData);
+            bundle.putInt(KEY_DATA, mSavedDataId);
+
             bundle.putInt(KEY_NEXT_ID, mIdGenerator.nextId());
             bundle.putParcelable(KEY_PAGE_DIVIDER, mPageDivider);
             bundle.putInt(KEY_START_PAGE, mStartPage);
@@ -869,7 +888,17 @@ public class ContentLayout extends FrameLayout {
                 Bundle bundle = (Bundle) state;
                 mViewTransition.showView(bundle.getInt(KEY_SHOWN_VIEW), false);
                 mTipView.setText(bundle.getString(KEY_TIP));
-                mData = bundle.getParcelableArrayList(KEY_DATA);
+
+                mSavedDataId = bundle.getInt(KEY_DATA);
+                EhApplication app = (EhApplication) getContext().getApplicationContext();
+                if (mSavedDataId != IntIdGenerator.INVALID_ID) {
+                    ArrayList<E> data = (ArrayList<E>) app.removeGlobalStuff(mSavedDataId);
+                    mSavedDataId = IntIdGenerator.INVALID_ID;
+                    if (data != null) {
+                        mData = data;
+                    }
+                }
+
                 mIdGenerator.setNextId(bundle.getInt(KEY_NEXT_ID));
                 mPageDivider = bundle.getParcelable(KEY_PAGE_DIVIDER);
                 mStartPage = bundle.getInt(KEY_START_PAGE);

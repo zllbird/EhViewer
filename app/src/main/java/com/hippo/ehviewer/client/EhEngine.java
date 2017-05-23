@@ -30,7 +30,9 @@ import com.hippo.ehviewer.client.data.GalleryInfo;
 import com.hippo.ehviewer.client.data.PreviewSet;
 import com.hippo.ehviewer.client.exception.CancelledException;
 import com.hippo.ehviewer.client.exception.EhException;
+import com.hippo.ehviewer.client.exception.NoHAtHClientException;
 import com.hippo.ehviewer.client.exception.ParseException;
+import com.hippo.ehviewer.client.parser.ArchiveParser;
 import com.hippo.ehviewer.client.parser.FavoritesParser;
 import com.hippo.ehviewer.client.parser.ForumsParser;
 import com.hippo.ehviewer.client.parser.GalleryApiParser;
@@ -56,6 +58,8 @@ import org.jsoup.nodes.Document;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import okhttp3.Call;
 import okhttp3.FormBody;
@@ -77,6 +81,8 @@ public class EhEngine {
 
     public static final MediaType MEDIA_TYPE_JSON = MediaType.parse("application/json; charset=utf-8");
     private static final MediaType MEDIA_TYPE_JPEG = MediaType.parse("image/jpeg");
+
+    private static final Pattern PATTERN_NEED_HATH_CLIENT = Pattern.compile("(You must have a H@H client assigned to your account to use this feature\\.)");
 
     public static EhFilter sEhFilter;
 
@@ -198,6 +204,10 @@ public class EhEngine {
                     n--;
                 }
             }
+        }
+
+        for (GalleryInfo info : list) {
+            info.thumb = EhUrl.getFixedPreviewThumbUrl(info.thumb);
         }
 
         return result;
@@ -448,6 +458,10 @@ public class EhEngine {
             fillGalleryListByApi(task, okHttpClient, result.galleryInfoList);
         }
 
+        for (GalleryInfo info : result.galleryInfoList) {
+            info.thumb = EhUrl.getFixedPreviewThumbUrl(info.thumb);
+        }
+
         return result;
     }
 
@@ -555,6 +569,10 @@ public class EhEngine {
             fillGalleryListByApi(task, okHttpClient, result.galleryInfoList);
         }
 
+        for (GalleryInfo info : result.galleryInfoList) {
+            info.thumb = EhUrl.getFixedPreviewThumbUrl(info.thumb);
+        }
+
         return result;
     }
 
@@ -587,9 +605,82 @@ public class EhEngine {
         return result;
     }
 
+    public static Pair<String, Pair<String, String>[]> getArchiveList(@Nullable EhClient.Task task, OkHttpClient okHttpClient,
+            String url) throws Exception {
+        Log.d(TAG, url);
+        Request request = new EhRequestBuilder(url, null != task ? task.getEhConfig() : Settings.getEhConfig()).build();
+        Call call = okHttpClient.newCall(request);
+
+        // Put call
+        if (null != task) {
+            task.setCall(call);
+        }
+
+        String body = null;
+        Headers headers = null;
+        Pair<String, Pair<String, String>[]> result;
+        int code = -1;
+        try {
+            Response response = call.execute();
+            code = response.code();
+            headers = response.headers();
+            body = response.body().string();
+            result = ArchiveParser.parse(body);
+        } catch (Exception e) {
+            throwException(call, code, headers, body, e);
+            throw e;
+        }
+
+        return result;
+    }
+
+    public static Void downloadArchive(@Nullable EhClient.Task task, OkHttpClient okHttpClient,
+                                    long gid, String token, String or, String res) throws Exception {
+        if (or == null || or.length() == 0) {
+            throw new EhException("Invalid form param or: " + or);
+        }
+        if (res == null || res.length() == 0) {
+            throw new EhException("Invalid res: " + res);
+        }
+        FormBody.Builder builder = new FormBody.Builder();
+        builder.add("hathdl_xres", res);
+        String url = EhUrl.getDownloadArchive(gid, token, or);
+        Log.d(TAG, url);
+        Request request = new EhRequestBuilder(url, null != task ? task.getEhConfig() : Settings.getEhConfig())
+                .post(builder.build())
+                .build();
+        Call call = okHttpClient.newCall(request);
+
+        // Put call
+        if (null != task) {
+            task.setCall(call);
+        }
+
+        String body = null;
+        Headers headers = null;
+        int code = -1;
+        try {
+            Response response = call.execute();
+            code = response.code();
+            headers = response.headers();
+            body = response.body().string();
+            throwException(call, code, headers, body, null);
+        } catch (Exception e) {
+            throwException(call, code, headers, body, e);
+            throw e;
+        }
+
+        Matcher m = PATTERN_NEED_HATH_CLIENT.matcher(body);
+        if (m.find()) {
+            throw new NoHAtHClientException("No H@H client");
+        }
+
+        return null;
+    }
+
     public static List<GalleryInfo> getWhatsHot(@Nullable EhClient.Task task,
             OkHttpClient okHttpClient) throws Exception {
-        String url = EhUrl.HOST_G;
+        String url = EhUrl.HOST_E;
         Log.d(TAG, url);
         Request request = new EhRequestBuilder(url, null != task ? task.getEhConfig() : Settings.getEhConfig()).build();
         Call call = okHttpClient.newCall(request);
@@ -617,6 +708,10 @@ public class EhEngine {
         if (list.size() > 0) {
             // Fill by api
             fillGalleryListByApi(task, okHttpClient, list);
+        }
+
+        for (GalleryInfo info : list) {
+            info.thumb = EhUrl.getFixedPreviewThumbUrl(info.thumb);
         }
 
         return list;
@@ -800,6 +895,10 @@ public class EhEngine {
                     n--;
                 }
             }
+        }
+
+        for (GalleryInfo info : list) {
+            info.thumb = EhUrl.getFixedPreviewThumbUrl(info.thumb);
         }
 
         return result;

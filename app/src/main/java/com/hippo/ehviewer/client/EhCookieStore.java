@@ -35,7 +35,7 @@ public class EhCookieStore extends CookieDBStore {
             new Cookie.Builder()
                     .name(EhConfig.KEY_CONTENT_WARNING)
                     .value(EhConfig.CONTENT_WARNING_NOT_SHOW)
-                    .domain(EhUrl.DOMAIN_G)
+                    .domain(EhUrl.DOMAIN_E)
                     .path("/")
                     .expiresAt(Long.MAX_VALUE)
                     .build();
@@ -83,7 +83,7 @@ public class EhCookieStore extends CookieDBStore {
         Object tag = request.tag();
         String host = url.host();
 
-        boolean checkTips = domainMatch(host, EhUrl.DOMAIN_G);
+        boolean checkTips = domainMatch(host, EhUrl.DOMAIN_E);
         boolean checkUconfig = (domainMatch(host, EhUrl.DOMAIN_E) || domainMatch(host, EhUrl.DOMAIN_EX)) && tag instanceof EhConfig;
 
         if (checkTips || checkUconfig) {
